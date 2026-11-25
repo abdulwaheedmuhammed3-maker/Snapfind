@@ -18,7 +18,7 @@ Implemented:
 
 ## Backend
 
-The Supabase migrations are in `supabase/migrations/`. Apply the three SQL files in filename order. The schema uses RLS, restricted Data API grants, explicit public-profile opt-in, and an RLS-aware server-side search function.
+The Supabase migrations are in `supabase/migrations/`. Apply all four SQL files in filename order. The schema uses RLS, restricted Data API grants, explicit public-profile opt-in, and an RLS-aware server-side search function.
 
 The Android app is configured with the Supabase Project URL and publishable/anon key at build time. See [docs/BUILD.md](docs/BUILD.md) and [supabase/README.md](supabase/README.md).
 
