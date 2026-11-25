@@ -1,19 +1,47 @@
 # Snapfind 👻
 
-Snapfind is a global, opt-in directory for discovering Snapchat usernames shared voluntarily by their owners.
+Snapfind is an independent, opt-in directory for discovering Snapchat usernames that people choose to publish.
 
-## Principles
-- Only users can submit and publish their own handles.
-- Users can edit, hide, or remove their listings.
-- No scraping or harvesting of Snapchat users.
-- Report/block and moderation tools are planned from the outset.
+## Android app
 
-## Project status
-Initial project scaffold. Android client and Supabase backend are planned.
+The first Android prototype is built with Kotlin and Jetpack Compose.
 
-## Planned stack
-- Android: Kotlin + Jetpack Compose
-- Backend: Supabase Auth and PostgreSQL
-- Country and interest-based discovery
+Implemented in this version:
+- Search preview listings by display name, username, country, or interests.
+- Filter preview listings by country.
+- Create and edit a public profile with a display name, Snapchat username, country, interests, and optional bio.
+- Hide or show your own listing, or delete it.
+- Copy a listed username.
+- Open a report-preview interaction.
 
-Snapfind is independent and is not affiliated with Snapchat.
+## Current prototype limitations
+
+**This version does not yet provide global discovery.** The discovery screen contains clearly labelled sample profiles. A profile you create is stored locally on your device using Android preferences; it is not uploaded or visible to other users. Authentication, a shared database, real reporting/moderation, and production privacy controls still need to be implemented before public launch.
+
+## Build a debug APK
+
+A GitHub Actions workflow is included at `.github/workflows/android.yml`. It runs on pushes to `main` and pull requests, builds the debug APK, and uploads it as the `snapfind-debug-apk` workflow artifact.
+
+The project uses:
+- Android Gradle Plugin 8.7.3
+- Kotlin 2.0.21
+- Jetpack Compose
+- Gradle 8.9
+- Java 17
+
+To build locally with Gradle 8.9 installed:
+
+```bash
+gradle assembleDebug
+```
+
+The APK is generated at `app/build/outputs/apk/debug/app-debug.apk`.
+
+## Privacy and safety principles
+
+- Only account owners may submit their own Snapchat usernames.
+- No scraping, enumeration, or harvesting of Snapchat accounts.
+- Users must be able to edit, hide, or delete their listings.
+- The production service must include reporting, blocking, and moderation.
+- Do not ask for or store Snapchat passwords.
+- Snapfind is not affiliated with or endorsed by Snapchat.
