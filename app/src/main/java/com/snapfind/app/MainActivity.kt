@@ -861,6 +861,137 @@ private fun MyListingScreen(
 }
 
 @Composable
+private fun AuthScreen(
+    isLoading: Boolean,
+    message: String?,
+    onCancel: () -> Unit,
+    onAuthenticate: (String, String, Boolean) -> Unit
+) {
+    var createAccount by remember { mutableStateOf(true) }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+
+    val validEmail = email.trim().contains("@") && email.trim().contains(".")
+    val validPassword = password.length >= 8
+    val passwordsMatch = !createAccount || password == confirmPassword
+    val canSubmit = validEmail && validPassword && passwordsMatch && !isLoading
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Spacer(Modifier.height(4.dp))
+        Text(
+            if (createAccount) "Join Snapfind" else "Welcome back",
+            fontSize = 27.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            "Use an email account to manage your Snapfind listing. Snapfind never asks for your Snapchat password.",
+            color = SnapfindColors.onSurfaceVariant,
+            fontSize = 13.sp,
+            lineHeight = 19.sp
+        )
+
+        OutlinedTextField(
+            value = email,
+            onValueChange = { email = it.take(254) },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Email address") },
+            singleLine = true,
+            shape = RoundedCornerShape(15.dp)
+        )
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it.take(128) },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Password") },
+            visualTransformation = PasswordVisualTransformation(),
+            singleLine = true,
+            shape = RoundedCornerShape(15.dp),
+            supportingText = { Text("Use at least 8 characters.") }
+        )
+        if (createAccount) {
+            OutlinedTextField(
+                value = confirmPassword,
+                onValueChange = { confirmPassword = it.take(128) },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Confirm password") },
+                visualTransformation = PasswordVisualTransformation(),
+                singleLine = true,
+                shape = RoundedCornerShape(15.dp)
+            )
+            if (confirmPassword.isNotEmpty() && !passwordsMatch) {
+                Text("Passwords do not match.", color = Color(0xFFFF9292), fontSize = 12.sp)
+            }
+        }
+
+        if (message != null) {
+            Surface(color = Color(0xFF29243D), shape = RoundedCornerShape(15.dp)) {
+                Text(
+                    message,
+                    modifier = Modifier.padding(13.dp),
+                    color = Color(0xFFD8D0FF),
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp
+                )
+            }
+        }
+
+        Button(
+            onClick = { onAuthenticate(email.trim(), password, createAccount) },
+            enabled = canSubmit,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(
+                when {
+                    isLoading -> "Please wait…"
+                    createAccount -> "Create account"
+                    else -> "Sign in"
+                }
+            )
+        }
+
+        TextButton(
+            onClick = {
+                createAccount = !createAccount
+                confirmPassword = ""
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading
+        ) {
+            Text(if (createAccount) "Already have an account? Sign in" else "New to Snapfind? Create an account")
+        }
+        TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth(), enabled = !isLoading) {
+            Text("Back")
+        }
+
+        Surface(color = Color(0xFF1C1B2A), shape = RoundedCornerShape(17.dp)) {
+            Text(
+                "Privacy: your email is used for Snapfind account access and is not shown on your public profile. Only the details you choose to publish are discoverable.",
+                modifier = Modifier.padding(14.dp),
+                color = SnapfindColors.onSurfaceVariant,
+                fontSize = 12.sp,
+                lineHeight = 18.sp
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+    }
+}
+
+@Composable
 private fun ProfileFormScreen(
     initialProfile: SnapProfile?,
     onCancel: () -> Unit,
