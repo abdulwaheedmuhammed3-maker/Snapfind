@@ -80,25 +80,9 @@ create policy "Owners can insert their profile"
 on public.profiles for insert to authenticated
 with check (id = (select auth.uid()));
 
-drop policy if exists "Users can discover public profiles" on public.profiles;
-create policy "Users can discover public profiles"
-on public.profiles for select to anon, authenticated
-using (
-    (is_public = true or id = (select auth.uid()))
-    and (
-        (select auth.uid()) is null
-        or not exists (
-            select 1 from public.blocks b
-            where b.blocker_id = (select auth.uid())
-              and b.blocked_profile_id = profiles.id
-        )
-        and not exists (
-            select 1 from public.blocks b
-            where b.blocked_profile_id = (select auth.uid())
-              and b.blocker_id = profiles.id
-        )
-    )
-);
+-- Discovery SELECT policies are created separately in migration 0004.
+-- Do not use an auth.uid() IS NULL exception here: it would expose every row
+-- to signed-out users because auth.uid() is null for the anon role.
 
 drop policy if exists "Owners can update their profile" on public.profiles;
 create policy "Owners can update their profile"
