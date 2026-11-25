@@ -317,30 +317,110 @@ private fun SnapfindApp() {
             when (screen) {
                 AppScreen.EXPLORE -> ExploreScreen(
                     profiles = profiles,
+                    backendConfigured = repository.isConfigured,
+                    isLoading = directoryLoading,
+                    errorMessage = directoryError,
                     onCopy = ::copyUsername,
                     onReport = { reportTarget = it }
                 )
                 AppScreen.PROFILE -> MyListingScreen(
-                    profile = ownProfile,
+                    profile = if (repository.isConfigured && session == null) null else ownProfile,
                     isPublished = isPublished,
+                    backendConfigured = repository.isConfigured,
+                    signedInEmail = session?.email,
                     onCopy = ::copyUsername,
+                    onSignIn = { screen = AppScreen.AUTH },
+                    onSignOut = {
+                        authLoading = true
+                        runInBackground(
+                            work = { repository.signOut() },
+                            onResult = {
+                                session = null
+                                ownProfile = null
+                                isPublished = false
+                                authLoading = false
+                            },
+                            onError = { message ->
+                                authLoading = false
+                                authMessage = message
+                            }
+                        )
+                    },
                     onCreate = { screen = AppScreen.ADD },
                     onEdit = { screen = AppScreen.EDIT },
                     onVisibilityChange = { visible ->
-                        isPublished = visible
-                        preferences.edit().putBoolean("published", visible).apply()
+                        val active = session
+                        if (repository.isConfigured && active != null) {
+                            runInBackground(
+                                work = {
+                                    repository.setProfileVisibility(active.userId, visible)
+                                    visible
+                                },
+                                onResult = { isPublished = it },
+                                onError = { message -> authMessage = message }
+                            )
+                        } else {
+                            isPublished = visible
+                            ownProfile = ownProfile?.copy(isPublished = visible)
+                            preferences.edit().putBoolean("published", visible).apply()
+                        }
                     },
                     onDelete = {
-                        preferences.edit().clear().apply()
-                        ownProfile = null
-                        isPublished = false
-                        screen = AppScreen.PROFILE
+                        val active = session
+                        if (repository.isConfigured && active != null) {
+                            runInBackground(
+                                work = { repository.deleteOwnProfile(active.userId) },
+                                onResult = {
+                                    ownProfile = null
+                                    isPublished = false
+                                    screen = AppScreen.PROFILE
+                                },
+                                onError = { message -> authMessage = message }
+                            )
+                        } else {
+                            preferences.edit().clear().apply()
+                            ownProfile = null
+                            isPublished = false
+                            screen = AppScreen.PROFILE
+                        }
                     }
                 )
                 AppScreen.ADD, AppScreen.EDIT -> ProfileFormScreen(
                     initialProfile = if (screen == AppScreen.EDIT) ownProfile else null,
                     onCancel = { screen = if (ownProfile == null) AppScreen.EXPLORE else AppScreen.PROFILE },
                     onSave = ::persistProfile
+                )
+                AppScreen.AUTH -> AuthScreen(
+                    isLoading = authLoading,
+                    message = authMessage,
+                    onCancel = { screen = if (session == null) AppScreen.EXPLORE else AppScreen.PROFILE },
+                    onAuthenticate = { email, password, createAccount ->
+                        authLoading = true
+                        authMessage = null
+                        runInBackground(
+                            work = {
+                                if (createAccount) {
+                                    repository.signUp(email, password)
+                                } else {
+                                    SupabaseAuthResult(repository.signIn(email, password), false)
+                                }
+                            },
+                            onResult = { result ->
+                                authLoading = false
+                                if (result.session != null) {
+                                    session = result.session
+                                    screen = AppScreen.EXPLORE
+                                    authMessage = null
+                                } else {
+                                    authMessage = "Check your email for the confirmation link. After confirming, return here and sign in."
+                                }
+                            },
+                            onError = { message ->
+                                authLoading = false
+                                authMessage = message
+                            }
+                        )
+                    }
                 )
             }
         }
@@ -351,13 +431,31 @@ private fun SnapfindApp() {
             onDismissRequest = { reportTarget = null },
             title = { Text("Report @${reportTarget!!.username}?") },
             text = {
-                Text("Reporting is shown here as a prototype interaction. A report will not be sent to a moderation team until the Snapfind backend is connected.")
+                Text(
+                    if (repository.isConfigured) {
+                        "Submit a report for review. Choose a reason: spam, harassment, impersonation, inappropriate content, or other."
+                    } else {
+                        "Reports will be submitted to the moderation service after Supabase is configured."
+                    }
+                )
             },
             confirmButton = {
                 TextButton(onClick = {
+                    val target = reportTarget!!
                     reportTarget = null
-                    Toast.makeText(context, "Report preview acknowledged", Toast.LENGTH_SHORT).show()
-                }) { Text("Got it") }
+                    if (!repository.isConfigured) {
+                        Toast.makeText(context, "Connect Supabase to submit reports.", Toast.LENGTH_LONG).show()
+                    } else if (session == null) {
+                        screen = AppScreen.AUTH
+                        authMessage = "Sign in before submitting a report."
+                    } else {
+                        runInBackground(
+                            work = { repository.reportProfile(target.id, "other") },
+                            onResult = { Toast.makeText(context, "Report submitted for review.", Toast.LENGTH_LONG).show() },
+                            onError = { message -> Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
+                        )
+                    }
+                }) { Text("Submit report") }
             },
             dismissButton = {
                 TextButton(onClick = { reportTarget = null }) { Text("Cancel") }
