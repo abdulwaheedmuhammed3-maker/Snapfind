@@ -18,7 +18,7 @@ Implemented:
 
 ## Backend
 
-The Supabase migrations are in `supabase/migrations/`. Apply all four SQL files in filename order. The schema uses RLS, restricted Data API grants, explicit public-profile opt-in, and an RLS-aware server-side search function.
+The Supabase migrations are in `supabase/migrations/`. Apply all five SQL files in filename order. The schema uses RLS, restricted Data API grants, explicit public-profile opt-in, and an RLS-aware server-side search function.
 
 The Android app is configured with the Supabase Project URL and publishable/anon key at build time. See [docs/BUILD.md](docs/BUILD.md) and [supabase/README.md](supabase/README.md).
 
@@ -29,7 +29,8 @@ The Android app is configured with the Supabase Project URL and publishable/anon
 - No real Supabase project credentials have been added to this repository yet. Until credentials are supplied to the build, the installed app runs in labelled demo mode.
 - The Android block-management UI is not connected yet.
 - Report submission is enabled, but moderation review/management still needs a trusted server-side workflow.
-- Account deletion, abuse rate limits, automated database policy tests, and production release signing remain outstanding.
+- Block data is protected, and discovery filters blocked accounts in both directions; the Android block-management screen is not yet implemented.
+- Account deletion, abuse rate limits, automated database policy tests, live project validation, and production release signing remain outstanding.
 
 ## Build a debug APK
 
