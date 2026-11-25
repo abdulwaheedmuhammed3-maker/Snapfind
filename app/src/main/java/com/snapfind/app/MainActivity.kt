@@ -212,6 +212,7 @@ private fun SnapfindApp() {
                 AppScreen.PROFILE -> MyListingScreen(
                     profile = ownProfile,
                     isPublished = isPublished,
+                    onCopy = ::copyUsername,
                     onCreate = { screen = AppScreen.ADD },
                     onEdit = { screen = AppScreen.EDIT },
                     onVisibilityChange = { visible ->
@@ -406,7 +407,8 @@ private fun ExploreScreen(
 private fun ProfileCard(
     profile: SnapProfile,
     onCopy: () -> Unit,
-    onReport: () -> Unit
+    onReport: () -> Unit,
+    showReport: Boolean = true
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -468,8 +470,10 @@ private fun ProfileCard(
                     Text("Copy username")
                 }
                 Spacer(Modifier.weight(1f))
-                IconButton(onClick = onReport) {
-                    Icon(Icons.Default.Flag, contentDescription = "Report listing", tint = SnapfindColors.onSurfaceVariant)
+                if (showReport) {
+                    IconButton(onClick = onReport) {
+                        Icon(Icons.Default.Flag, contentDescription = "Report listing", tint = SnapfindColors.onSurfaceVariant)
+                    }
                 }
             }
         }
@@ -492,6 +496,7 @@ private fun SmallTag(label: String) {
 private fun MyListingScreen(
     profile: SnapProfile?,
     isPublished: Boolean,
+    onCopy: (SnapProfile) -> Unit,
     onCreate: () -> Unit,
     onEdit: () -> Unit,
     onVisibilityChange: (Boolean) -> Unit,
@@ -519,7 +524,12 @@ private fun MyListingScreen(
                 Text("Create my listing")
             }
         } else {
-            ProfileCard(profile = profile, onCopy = {}, onReport = {})
+            ProfileCard(
+                profile = profile,
+                onCopy = { onCopy(profile) },
+                onReport = {},
+                showReport = false
+            )
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF191C28)),
                 shape = RoundedCornerShape(20.dp)
