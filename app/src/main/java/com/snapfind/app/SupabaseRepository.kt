@@ -83,6 +83,7 @@ class SupabaseRepository(context: Context) {
         }
     }
 
+    @Synchronized
     fun validSession(): SupabaseSession? {
         val session = savedSession() ?: return null
         if (session.expiresAtMillis > System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(1)) {
@@ -109,7 +110,7 @@ class SupabaseRepository(context: Context) {
     fun fetchPublicProfiles(query: String = "", country: String = ""): List<SnapProfile> {
         val session = validSession()
         val body = JSONObject()
-            .put("search_query", query.trim().take(40))
+            .put("search_query", query.trim().removePrefix("@").take(40))
             .put("country_filter", country.trim().take(60))
             .put("max_results", 100)
 
