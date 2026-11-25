@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -340,7 +341,9 @@ private fun ExploreScreen(
         ) {
             countries.forEach { option ->
                 Surface(
-                    onClick = { country = option },
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50.dp))
+                        .clickable { country = option },
                     color = if (country == option) Color(0xFF8D7BEB) else Color(0xFF202332),
                     shape = RoundedCornerShape(50.dp)
                 ) {
