@@ -149,6 +149,7 @@ private fun SnapfindApp() {
     var authMessage by remember { mutableStateOf<String?>(null) }
     var directoryLoading by remember { mutableStateOf(repository.isConfigured) }
     var directoryError by remember { mutableStateOf<String?>(null) }
+    var searchGeneration by remember { mutableStateOf(0) }
 
     var ownProfile by remember {
         mutableStateOf(
@@ -205,6 +206,7 @@ private fun SnapfindApp() {
         if (repository.isConfigured) {
             directoryLoading = true
             directoryError = null
+            val requestId = ++searchGeneration
             runInBackground(
                 work = {
                     val discovered = repository.fetchPublicProfiles()
@@ -212,15 +214,19 @@ private fun SnapfindApp() {
                     discovered to mine
                 },
                 onResult = { result ->
-                    profiles.clear()
-                    profiles.addAll(result.first)
-                    ownProfile = result.second
-                    isPublished = result.second?.isPublished ?: false
-                    directoryLoading = false
+                    if (requestId == searchGeneration) {
+                        profiles.clear()
+                        profiles.addAll(result.first)
+                        ownProfile = result.second
+                        isPublished = result.second?.isPublished ?: false
+                        directoryLoading = false
+                    }
                 },
                 onError = { message ->
-                    directoryError = message
-                    directoryLoading = false
+                    if (requestId == searchGeneration) {
+                        directoryError = message
+                        directoryLoading = false
+                    }
                 }
             )
         }
@@ -328,17 +334,22 @@ private fun SnapfindApp() {
                     onSearch = { query, country ->
                         if (repository.isConfigured) {
                             directoryLoading = true
+                            val requestId = ++searchGeneration
                             runInBackground(
                                 work = { repository.fetchPublicProfiles(query, country) },
                                 onResult = { found ->
-                                    profiles.clear()
-                                    profiles.addAll(found)
-                                    directoryLoading = false
-                                    directoryError = null
+                                    if (requestId == searchGeneration) {
+                                        profiles.clear()
+                                        profiles.addAll(found)
+                                        directoryLoading = false
+                                        directoryError = null
+                                    }
                                 },
                                 onError = { message ->
-                                    directoryError = message
-                                    directoryLoading = false
+                                    if (requestId == searchGeneration) {
+                                        directoryError = message
+                                        directoryLoading = false
+                                    }
                                 }
                             )
                         }
@@ -349,6 +360,7 @@ private fun SnapfindApp() {
                     isPublished = isPublished,
                     backendConfigured = repository.isConfigured,
                     signedInEmail = session?.email,
+                    message = authMessage,
                     onCopy = ::copyUsername,
                     onSignIn = { screen = AppScreen.AUTH },
                     onSignOut = {
@@ -411,6 +423,7 @@ private fun SnapfindApp() {
                 )
                 AppScreen.ADD, AppScreen.EDIT -> ProfileFormScreen(
                     initialProfile = if (screen == AppScreen.EDIT) ownProfile else null,
+                    message = authMessage,
                     onCancel = { screen = if (ownProfile == null) AppScreen.EXPLORE else AppScreen.PROFILE },
                     onSave = ::persistProfile
                 )
@@ -802,6 +815,7 @@ private fun MyListingScreen(
     isPublished: Boolean,
     backendConfigured: Boolean,
     signedInEmail: String?,
+    message: String?,
     onCopy: (SnapProfile) -> Unit,
     onSignIn: () -> Unit,
     onSignOut: () -> Unit,
@@ -820,6 +834,11 @@ private fun MyListingScreen(
     ) {
         Text("My listing", fontSize = 27.sp, fontWeight = FontWeight.Bold)
         Text("Control what people can discover about you.", color = SnapfindColors.onSurfaceVariant, fontSize = 14.sp)
+        if (message != null) {
+            Surface(color = Color(0xFF29243D), shape = RoundedCornerShape(14.dp)) {
+                Text(message, modifier = Modifier.padding(12.dp), color = Color(0xFFD8D0FF), fontSize = 12.sp)
+            }
+        }
 
         if (backendConfigured && signedInEmail != null) {
             Text("Signed in as $signedInEmail", color = SnapfindColors.onSurfaceVariant, fontSize = 12.sp)
@@ -1062,6 +1081,7 @@ private fun AuthScreen(
 @Composable
 private fun ProfileFormScreen(
     initialProfile: SnapProfile?,
+    message: String?,
     onCancel: () -> Unit,
     onSave: (SnapProfile) -> Unit
 ) {
@@ -1095,6 +1115,11 @@ private fun ProfileFormScreen(
             fontSize = 13.sp,
             lineHeight = 19.sp
         )
+        if (message != null) {
+            Surface(color = Color(0xFF29243D), shape = RoundedCornerShape(14.dp)) {
+                Text(message, modifier = Modifier.padding(12.dp), color = Color(0xFFD8D0FF), fontSize = 12.sp)
+            }
+        }
 
         OutlinedTextField(
             value = displayName,
