@@ -229,9 +229,10 @@ class SupabaseRepository(context: Context) {
         val builder = Request.Builder()
             .url(baseUrl + path)
             .header("apikey", anonKey)
-            .header("Authorization", "Bearer ${session?.accessToken ?: anonKey}")
             .header("Accept", "application/json")
 
+        // Publishable API keys are not JWTs; Authorization must carry only a user access token.
+        if (session != null) builder.header("Authorization", "Bearer ${session.accessToken}")
         if (prefer != null) builder.header("Prefer", prefer)
         val requestBody = body?.toString()?.toRequestBody(jsonMediaType)
 
