@@ -4,11 +4,12 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-val localConfig = java.util.Properties().apply {
-    val configFile = rootProject.file("local.properties")
-    if (configFile.exists()) {
-        configFile.inputStream().use { load(it) }
-    }
+import java.util.Properties
+
+val localConfig = Properties()
+val localConfigFile = rootProject.file("local.properties")
+if (localConfigFile.exists()) {
+    localConfigFile.inputStream().use { localConfig.load(it) }
 }
 
 fun configValue(name: String): String =
