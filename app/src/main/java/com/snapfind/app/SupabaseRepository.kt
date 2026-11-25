@@ -3,10 +3,10 @@ package com.snapfind.app
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.net.HttpURLConnection
-import java.net.URL
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
@@ -29,6 +29,11 @@ class SupabaseRepository(context: Context) {
 
     private val baseUrl = BuildConfig.SUPABASE_URL.trim().trimEnd('/')
     private val anonKey = BuildConfig.SUPABASE_ANON_KEY.trim()
+    private val httpClient = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
+        .build()
+    private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
     val isConfigured: Boolean
         get() = baseUrl.startsWith("https://") &&
@@ -220,45 +225,39 @@ class SupabaseRepository(context: Context) {
         prefer: String? = null
     ): JSONObject {
         requireConfigured()
-        val connection = (URL(baseUrl + path).openConnection() as HttpURLConnection).apply {
-            requestMethod = method
-            connectTimeout = 15_000
-            readTimeout = 20_000
-            setRequestProperty("apikey", anonKey)
-            setRequestProperty("Authorization", "Bearer ${session?.accessToken ?: anonKey}")
-            setRequestProperty("Accept", "application/json")
-            if (body != null) {
-                doOutput = true
-                setRequestProperty("Content-Type", "application/json; charset=utf-8")
-            }
-            if (prefer != null) setRequestProperty("Prefer", prefer)
+        val builder = Request.Builder()
+            .url(baseUrl + path)
+            .header("apikey", anonKey)
+            .header("Authorization", "Bearer ${session?.accessToken ?: anonKey}")
+            .header("Accept", "application/json")
+
+        if (prefer != null) builder.header("Prefer", prefer)
+        val requestBody = body?.toString()?.toRequestBody(jsonMediaType)
+
+        val request = when (method) {
+            "GET" -> builder.get().build()
+            "POST" -> builder.post(requestBody ?: "".toRequestBody(jsonMediaType)).build()
+            "PATCH" -> builder.patch(
+                requestBody ?: throw IllegalArgumentException("PATCH requests require a JSON body.")
+            ).build()
+            "DELETE" -> builder.delete().build()
+            else -> builder.method(method, requestBody).build()
         }
 
-        try {
-            if (body != null) {
-                connection.outputStream.use { output ->
-                    output.write(body.toString().toByteArray(StandardCharsets.UTF_8))
-                }
-            }
-
-            val status = connection.responseCode
-            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-            val responseText = stream?.use { input ->
-                BufferedReader(InputStreamReader(input, StandardCharsets.UTF_8)).use { it.readText() }
-            }.orEmpty()
-
-            if (status !in 200..299) {
+        httpClient.newCall(request).execute().use { response ->
+            val responseText = response.body?.string().orEmpty()
+            if (!response.isSuccessful) {
                 val message = try {
                     val error = JSONObject(responseText)
                     error.optString(
                         "msg",
                         error.optString(
                             "message",
-                            error.optString("error_description", error.optString("error", "Request failed ($status)."))
+                            error.optString("error_description", error.optString("error", "Request failed (${response.code})."))
                         )
                     )
                 } catch (_: Exception) {
-                    "Request failed ($status)."
+                    "Request failed (${response.code})."
                 }
                 throw IllegalStateException(message)
             }
@@ -269,8 +268,6 @@ class SupabaseRepository(context: Context) {
             } catch (_: Exception) {
                 JSONObject(responseText)
             }
-        } finally {
-            connection.disconnect()
         }
     }
 
