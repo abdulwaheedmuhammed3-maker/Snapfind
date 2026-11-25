@@ -4,6 +4,22 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val localConfig = java.util.Properties().apply {
+    val configFile = rootProject.file("local.properties")
+    if (configFile.exists()) {
+        configFile.inputStream().use { load(it) }
+    }
+}
+
+fun configValue(name: String): String =
+    (providers.gradleProperty(name).orNull
+        ?: System.getenv(name)
+        ?: localConfig.getProperty(name)
+        ?: "").trim()
+
+fun String.asBuildConfigLiteral(): String =
+    "\"" + replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
 android {
     namespace = "com.snapfind.app"
     compileSdk = 35
@@ -12,8 +28,11 @@ android {
         applicationId = "com.snapfind.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
+
+        buildConfigField("String", "SUPABASE_URL", configValue("SUPABASE_URL").asBuildConfigLiteral())
+        buildConfigField("String", "SUPABASE_ANON_KEY", configValue("SUPABASE_ANON_KEY").asBuildConfigLiteral())
     }
 
     compileOptions {
@@ -27,6 +46,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
