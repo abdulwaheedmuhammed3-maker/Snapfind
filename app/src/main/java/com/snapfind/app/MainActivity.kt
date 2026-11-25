@@ -363,6 +363,9 @@ private fun SnapfindApp() {
                                 authLoading = false
                             },
                             onError = { message ->
+                                session = null
+                                ownProfile = null
+                                isPublished = false
                                 authLoading = false
                                 authMessage = message
                             }
@@ -574,7 +577,8 @@ private fun ExploreScreen(
             profile.displayName.contains(query, ignoreCase = true) ||
             profile.username.contains(query.removePrefix("@"), ignoreCase = true) ||
             profile.country.contains(query, ignoreCase = true) ||
-            profile.interests.contains(query, ignoreCase = true)
+            profile.interests.contains(query, ignoreCase = true) ||
+            profile.bio.contains(query, ignoreCase = true)
         val matchesCountry = country == "All" || profile.country.equals(country, ignoreCase = true)
         matchesQuery && matchesCountry
     }
@@ -1112,7 +1116,7 @@ private fun ProfileFormScreen(
 
         OutlinedTextField(
             value = displayName,
-            onValueChange = { displayName = it.take(40) },
+            onValueChange = { displayName = it.take(30) },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Display name") },
             placeholder = { Text("How should people know you?") },
