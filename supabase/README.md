@@ -5,6 +5,7 @@ The SQL migrations must be applied in filename order:
 1. `migrations/202611250001_initial_schema.sql`
 2. `migrations/202611250002_data_api_grants.sql`
 3. `migrations/202611250003_directory_search.sql`
+4. `migrations/202611250004_split_profile_discovery_policies.sql`
 
 ## Create and configure the project
 
@@ -42,7 +43,7 @@ For GitHub Actions builds, configure the repository variable `SUPABASE_URL` and 
 ## Security model and remaining work
 
 - Profiles start with `is_public = false`; public visibility is opt-in.
-- RLS and narrow Data API grants restrict discovery and profile writes.
+- RLS and narrow Data API grants restrict discovery and profile writes. Anonymous discovery and signed-in discovery use separate policies; signed-out users cannot query private block records.
 - Report records are private to the reporter after submission. A trusted moderation console/workflow is still needed to review and resolve reports.
 - The `blocks` table and RLS are prepared, but the Android block-management interface is not yet connected.
 - Add rate limits/abuse controls, account deletion, report moderation, database tests, and full device testing before public launch.
