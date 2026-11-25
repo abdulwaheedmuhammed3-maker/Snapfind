@@ -4,6 +4,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -43,6 +45,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -73,6 +76,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import java.util.concurrent.Executors
 
 private val SnapfindColors = darkColorScheme(
     primary = Color(0xFF9B8CFF),
@@ -93,10 +98,30 @@ private data class SnapProfile(
     val country: String,
     val interests: String,
     val bio: String,
-    val isPreview: Boolean = false
+    val isPreview: Boolean = false,
+    val isPublished: Boolean = true
 )
 
-private enum class AppScreen { EXPLORE, PROFILE, ADD, EDIT }
+private enum class AppScreen { EXPLORE, PROFILE, ADD, EDIT, AUTH }
+
+private val SnapfindExecutor = Executors.newFixedThreadPool(3)
+private val SnapfindMainHandler = Handler(Looper.getMainLooper())
+
+private fun <T> runInBackground(
+    work: () -> T,
+    onResult: (T) -> Unit,
+    onError: (String) -> Unit
+) {
+    SnapfindExecutor.execute {
+        try {
+            val result = work()
+            SnapfindMainHandler.post { onResult(result) }
+        } catch (error: Exception) {
+            val message = error.message?.takeIf { it.isNotBlank() } ?: "Something went wrong. Please try again."
+            SnapfindMainHandler.post { onError(message) }
+        }
+    }
+}
 
 private val SnapchatUsernamePattern = Regex("^[A-Za-z][A-Za-z0-9._-]{1,13}[A-Za-z0-9]$")
 
@@ -117,6 +142,12 @@ private fun SnapfindApp() {
     val preferences = remember {
         context.getSharedPreferences("snapfind_local_profile", Context.MODE_PRIVATE)
     }
+    val repository = remember(context) { SupabaseRepository(context) }
+    var session by remember { mutableStateOf(repository.savedSession()) }
+    var authLoading by remember { mutableStateOf(false) }
+    var authMessage by remember { mutableStateOf<String?>(null) }
+    var directoryLoading by remember { mutableStateOf(repository.isConfigured) }
+    var directoryError by remember { mutableStateOf<String?>(null) }
 
     var ownProfile by remember {
         mutableStateOf(
@@ -134,19 +165,62 @@ private fun SnapfindApp() {
     }
     var isPublished by remember { mutableStateOf(preferences.getBoolean("published", true)) }
     val profiles = remember {
-        mutableStateListOf(
-            SnapProfile("preview-1", "Maya", "maya.frames", "Nigeria", "Photography, Travel", "Capturing small moments and exploring new places.", true),
-            SnapProfile("preview-2", "Tobi", "tobi.codes", "Nigeria", "Technology, Music", "CS student, music lover and curious builder.", true),
-            SnapProfile("preview-3", "Zara", "zara.vibes", "Ghana", "Fashion, Art", "Style, colour and creative conversations.", true),
-            SnapProfile("preview-4", "Noah", "noah.outdoors", "United Kingdom", "Football, Fitness", "Usually outdoors or watching a good match.", true),
-            SnapProfile("preview-5", "Ari", "ari.creates", "Canada", "Design, Gaming", "Making things, learning things, and sharing ideas.", true)
-        )
+        mutableStateListOf<SnapProfile>().apply {
+            if (!repository.isConfigured) {
+                addAll(
+                    listOf(
+                        SnapProfile("preview-1", "Maya", "maya.frames", "Nigeria", "Photography, Travel", "Capturing small moments and exploring new places.", true),
+                        SnapProfile("preview-2", "Tobi", "tobi.codes", "Nigeria", "Technology, Music", "CS student, music lover and curious builder.", true),
+                        SnapProfile("preview-3", "Zara", "zara.vibes", "Ghana", "Fashion, Art", "Style, colour and creative conversations.", true),
+                        SnapProfile("preview-4", "Noah", "noah.outdoors", "United Kingdom", "Football, Fitness", "Usually outdoors or watching a good match.", true),
+                        SnapProfile("preview-5", "Ari", "ari.creates", "Canada", "Design, Gaming", "Making things, learning things, and sharing ideas.", true)
+                    )
+                )
+            }
+        }
     }
 
-    LaunchedEffect(ownProfile, isPublished) {
-        profiles.removeAll { it.id == "owner" }
-        if (ownProfile != null && isPublished) {
-            profiles.add(0, ownProfile!!.copy(id = "owner", isPreview = false))
+    LaunchedEffect(ownProfile, isPublished, repository.isConfigured) {
+        if (!repository.isConfigured) {
+            profiles.removeAll { it.id == "owner" }
+            if (ownProfile != null && isPublished) {
+                profiles.add(0, ownProfile!!.copy(id = "owner", isPreview = false))
+            }
+        }
+    }
+
+    LaunchedEffect(repository.isConfigured) {
+        if (repository.isConfigured) {
+            runInBackground(
+                work = { repository.validSession() },
+                onResult = { restored -> session = restored },
+                onError = { message -> directoryError = message }
+            )
+        }
+    }
+
+    LaunchedEffect(repository.isConfigured, session?.userId) {
+        if (repository.isConfigured) {
+            directoryLoading = true
+            directoryError = null
+            runInBackground(
+                work = {
+                    val discovered = repository.fetchPublicProfiles()
+                    val mine = session?.let { repository.fetchOwnProfile(it.userId) }
+                    discovered to mine
+                },
+                onResult = { result ->
+                    profiles.clear()
+                    profiles.addAll(result.first)
+                    ownProfile = result.second
+                    isPublished = result.second?.isPublished ?: false
+                    directoryLoading = false
+                },
+                onError = { message ->
+                    directoryError = message
+                    directoryLoading = false
+                }
+            )
         }
     }
 
@@ -154,7 +228,36 @@ private fun SnapfindApp() {
     var reportTarget by remember { mutableStateOf<SnapProfile?>(null) }
 
     fun persistProfile(profile: SnapProfile) {
-        val saved = profile.copy(id = "owner", isPreview = false)
+        if (repository.isConfigured) {
+            val activeSession = session
+            if (activeSession == null) {
+                screen = AppScreen.AUTH
+                authMessage = "Sign in to publish your profile."
+                return
+            }
+            authLoading = true
+            runInBackground(
+                work = {
+                    repository.saveProfile(profile, activeSession.userId)
+                    profile.copy(id = activeSession.userId, isPreview = false, isPublished = true)
+                },
+                onResult = { saved ->
+                    ownProfile = saved
+                    isPublished = true
+                    authLoading = false
+                    authMessage = null
+                    screen = AppScreen.PROFILE
+                },
+                onError = { message ->
+                    authLoading = false
+                    authMessage = message
+                    screen = AppScreen.EDIT
+                }
+            )
+            return
+        }
+
+        val saved = profile.copy(id = "owner", isPreview = false, isPublished = true)
         preferences.edit()
             .putString("display_name", saved.displayName)
             .putString("username", saved.username)
@@ -186,13 +289,19 @@ private fun SnapfindApp() {
                 )
                 NavigationBarItem(
                     selected = screen == AppScreen.PROFILE,
-                    onClick = { screen = AppScreen.PROFILE },
+                    onClick = { screen = if (repository.isConfigured && session == null) AppScreen.AUTH else AppScreen.PROFILE },
                     icon = { Icon(Icons.Default.Person, contentDescription = "My listing") },
                     label = { Text("My listing") }
                 )
                 NavigationBarItem(
                     selected = screen == AppScreen.ADD || screen == AppScreen.EDIT,
-                    onClick = { screen = if (ownProfile == null) AppScreen.ADD else AppScreen.EDIT },
+                    onClick = {
+                        screen = when {
+                            repository.isConfigured && session == null -> AppScreen.AUTH
+                            ownProfile == null -> AppScreen.ADD
+                            else -> AppScreen.EDIT
+                        }
+                    },
                     icon = { Icon(Icons.Default.Add, contentDescription = "Add listing") },
                     label = { Text("Publish") }
                 )
