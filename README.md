@@ -4,44 +4,44 @@ Snapfind is an independent, opt-in directory for discovering Snapchat usernames 
 
 ## Android app
 
-The first Android prototype is built with Kotlin and Jetpack Compose.
+The Android client is built with Kotlin and Jetpack Compose.
 
-Implemented in this version:
-- Search preview listings by display name, username, country, or interests.
-- Filter preview listings by country.
-- Create and edit a public profile with a display name, Snapchat username, country, interests, and optional bio.
-- Hide or show your own listing, or delete it.
-- Copy a listed username.
-- Open a report-preview interaction.
+Implemented:
+- Demo mode when no Supabase project is configured.
+- Email/password account creation and sign-in using Supabase Auth.
+- Encrypted session storage using the Android Keystore.
+- Live discovery search by display name, username, country, bio, and interests.
+- Country filtering and profile result cards.
+- Owner profile creation and editing.
+- Public visibility toggle and listing deletion.
+- Username copying and report submission.
 
-## Current prototype limitations
+## Backend
 
-**This version does not yet provide global discovery.** The discovery screen contains clearly labelled sample profiles. A profile you create is stored locally on your device using Android preferences; it is not uploaded or visible to other users. Supabase SQL schema is present under `supabase/migrations/`, but authentication, the live database connection, real reporting/moderation operations, and production privacy controls still need to be implemented before public launch.
+The Supabase migrations are in `supabase/migrations/`. Apply the three SQL files in filename order. The schema uses RLS, restricted Data API grants, explicit public-profile opt-in, and an RLS-aware server-side search function.
+
+The Android app is configured with the Supabase Project URL and publishable/anon key at build time. See [docs/BUILD.md](docs/BUILD.md) and [supabase/README.md](supabase/README.md).
+
+**Do not put a Supabase secret or service-role key in the app.** The public key is not an authorization boundary; RLS and database grants must remain correct.
+
+## Current limitations
+
+- No real Supabase project credentials have been added to this repository yet. Until credentials are supplied to the build, the installed app runs in labelled demo mode.
+- The Android block-management UI is not connected yet.
+- Report submission is enabled, but moderation review/management still needs a trusted server-side workflow.
+- Account deletion, abuse rate limits, automated database policy tests, and production release signing remain outstanding.
 
 ## Build a debug APK
 
-A GitHub Actions workflow is included at `.github/workflows/android.yml`. It runs on pushes to `main` and pull requests, builds the debug APK, and uploads it as the `snapfind-debug-apk` workflow artifact.
+GitHub Actions builds the Android project on pushes to `main` and pull requests and uploads `snapfind-debug-apk` when successful.
 
-The project uses:
-- Android Gradle Plugin 8.7.3
-- Kotlin 2.0.21
-- Jetpack Compose
-- Gradle 8.9
-- Java 17
+For local builds, use Java 17, Gradle 8.9, Android SDK 35, and `gradle assembleDebug`.
 
-To build locally with Gradle 8.9 installed:
+## Privacy and safety
 
-```bash
-gradle assembleDebug
-```
-
-The APK is generated at `app/build/outputs/apk/debug/app-debug.apk`.
-
-## Privacy and safety principles
-
-- Only account owners may submit their own Snapchat usernames.
+- Only account owners may submit and publish their own handles.
+- Listings are private until the owner explicitly enables public visibility.
+- Users can hide or delete their own listing.
 - No scraping, enumeration, or harvesting of Snapchat accounts.
-- Users must be able to edit, hide, or delete their listings.
-- The production service must include reporting, blocking, and moderation.
-- Do not ask for or store Snapchat passwords.
+- Snapfind never asks for Snapchat passwords.
 - Snapfind is not affiliated with or endorsed by Snapchat.
