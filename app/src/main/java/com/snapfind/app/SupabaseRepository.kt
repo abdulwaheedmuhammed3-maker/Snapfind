@@ -1,7 +1,6 @@
 package com.snapfind.app
 
 import android.content.Context
-import android.content.SharedPreferences
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
@@ -26,8 +25,7 @@ data class SupabaseAuthResult(
 )
 
 class SupabaseRepository(context: Context) {
-    private val preferences: SharedPreferences =
-        context.getSharedPreferences("snapfind_auth", Context.MODE_PRIVATE)
+    private val sessionStore = SecureSessionStore(context)
 
     private val baseUrl = BuildConfig.SUPABASE_URL.trim().trimEnd('/')
     private val anonKey = BuildConfig.SUPABASE_ANON_KEY.trim()
@@ -37,14 +35,7 @@ class SupabaseRepository(context: Context) {
             anonKey.isNotBlank() &&
             !anonKey.contains("YOUR_")
 
-    fun savedSession(): SupabaseSession? {
-        val accessToken = preferences.getString("access_token", null) ?: return null
-        val refreshToken = preferences.getString("refresh_token", null) ?: return null
-        val userId = preferences.getString("user_id", null) ?: return null
-        val email = preferences.getString("email", "").orEmpty()
-        val expiresAt = preferences.getLong("expires_at", 0L)
-        return SupabaseSession(accessToken, refreshToken, userId, email, expiresAt)
-    }
+    fun savedSession(): SupabaseSession? = sessionStore.read()
 
     fun signUp(email: String, password: String): SupabaseAuthResult {
         requireConfigured()
@@ -317,17 +308,11 @@ class SupabaseRepository(context: Context) {
     }
 
     private fun saveSession(session: SupabaseSession) {
-        preferences.edit()
-            .putString("access_token", session.accessToken)
-            .putString("refresh_token", session.refreshToken)
-            .putString("user_id", session.userId)
-            .putString("email", session.email)
-            .putLong("expires_at", session.expiresAtMillis)
-            .apply()
+        sessionStore.save(session)
     }
 
     private fun clearSession() {
-        preferences.edit().clear().apply()
+        sessionStore.clear()
     }
 
     private fun requireSession(): SupabaseSession =
