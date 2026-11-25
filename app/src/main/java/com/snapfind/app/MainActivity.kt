@@ -98,6 +98,8 @@ private data class SnapProfile(
 
 private enum class AppScreen { EXPLORE, PROFILE, ADD, EDIT }
 
+private val SnapchatUsernamePattern = Regex("^[A-Za-z][A-Za-z0-9._-]{1,13}[A-Za-z0-9]$")
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -610,9 +612,9 @@ private fun ProfileFormScreen(
     var consent by remember(initialProfile?.id) { mutableStateOf(initialProfile != null) }
 
     val cleanUsername = username.trim().removePrefix("@")
+    val validUsername = cleanUsername.length in 3..15 && SnapchatUsernamePattern.matches(cleanUsername)
     val valid = displayName.isNotBlank() &&
-        cleanUsername.length in 3..30 &&
-        !cleanUsername.any { it.isWhitespace() } &&
+        validUsername &&
         country.isNotBlank() &&
         consent
 
@@ -643,13 +645,13 @@ private fun ProfileFormScreen(
         )
         OutlinedTextField(
             value = username,
-            onValueChange = { username = it.take(31) },
+            onValueChange = { username = it.take(15) },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Snapchat username") },
             placeholder = { Text("your.username") },
             singleLine = true,
             shape = RoundedCornerShape(15.dp),
-            supportingText = { Text("Enter the username only, without spaces. Do not enter your password.") }
+            supportingText = { Text("3–15 characters. Start with a letter and end with a letter or number. Never enter your password.") }
         )
         OutlinedTextField(
             value = country,
