@@ -163,7 +163,7 @@ class SupabaseRepository(context: Context) {
             .put("country", profile.country.trim())
             .put("interests", interests)
             .put("bio", profile.bio.trim())
-            .put("is_public", true)
+            .put("is_public", profile.isPublished)
 
         request(
             "POST",
