@@ -92,17 +92,6 @@ private val SnapfindColors = darkColorScheme(
     onSurfaceVariant = Color(0xFFB9B7C8)
 )
 
-private data class SnapProfile(
-    val id: String,
-    val displayName: String,
-    val username: String,
-    val country: String,
-    val interests: String,
-    val bio: String,
-    val isPreview: Boolean = false,
-    val isPublished: Boolean = true
-)
-
 private enum class AppScreen { EXPLORE, PROFILE, ADD, EDIT, AUTH }
 
 private val SnapfindExecutor = Executors.newFixedThreadPool(3)
@@ -209,11 +198,11 @@ private fun SnapfindApp() {
             val requestId = ++searchGeneration
             runInBackground(
                 work = {
-                    val discovered = repository.fetchPublicProfiles()
-                    val mine = session?.let { repository.fetchOwnProfile(it.userId) }
-                    discovered to mine
+                    val discovered: List<SnapProfile> = repository.fetchPublicProfiles()
+                    val mine: SnapProfile? = session?.let { repository.fetchOwnProfile(it.userId) }
+                    Pair(discovered, mine)
                 },
-                onResult = { result ->
+                onResult = { result: Pair<List<SnapProfile>, SnapProfile?> ->
                     if (requestId == searchGeneration) {
                         profiles.clear()
                         profiles.addAll(result.first)
