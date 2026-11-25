@@ -29,8 +29,8 @@ as $$
           or p.bio ilike '%' || btrim(search_query) || '%'
           or exists (
               select 1
-              from unnest(p.interests) as interest
-              where interest ilike '%' || btrim(search_query) || '%'
+              from unnest(p.interests) as item(value)
+              where item.value ilike '%' || btrim(search_query) || '%'
           )
       )
       and (
