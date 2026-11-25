@@ -26,7 +26,7 @@ The Android app is configured with the Supabase Project URL and publishable/anon
 
 ## Current limitations
 
-- No real Supabase project credentials have been added to this repository yet. Until credentials are supplied to the build, the installed app runs in labelled demo mode.
+- Supabase credentials are configured through GitHub Actions repository variable `SUPABASE_URL` and secret `SUPABASE_ANON_KEY`; live backend behavior still requires validation against the configured project.
 - The Android block-management UI is not connected yet.
 - Report submission is enabled, but moderation review/management still needs a trusted server-side workflow.
 - Block data is protected, and discovery filters blocked accounts in both directions; the Android block-management screen is not yet implemented.
