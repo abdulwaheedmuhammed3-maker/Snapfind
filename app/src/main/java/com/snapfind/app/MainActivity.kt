@@ -552,7 +552,13 @@ private fun ExploreScreen(
     var query by remember { mutableStateOf("") }
     var country by remember { mutableStateOf("All") }
     var hasFiltered by remember { mutableStateOf(false) }
-    val countries = listOf("All") + profiles.map { it.country }.filter { it.isNotBlank() }.distinct().sorted()
+    val commonCountries = listOf(
+        "All", "Nigeria", "Ghana", "Kenya", "South Africa", "Egypt",
+        "United Kingdom", "United States", "Canada", "India", "Australia"
+    )
+    val countries = (commonCountries + profiles.map { it.country })
+        .filter { it.isNotBlank() }
+        .distinct()
 
     LaunchedEffect(query, country, hasFiltered, backendConfigured) {
         if (backendConfigured && hasFiltered) {
