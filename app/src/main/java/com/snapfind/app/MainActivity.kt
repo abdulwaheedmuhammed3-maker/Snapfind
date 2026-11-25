@@ -503,6 +503,9 @@ private fun AppHeader() {
 @Composable
 private fun ExploreScreen(
     profiles: List<SnapProfile>,
+    backendConfigured: Boolean,
+    isLoading: Boolean,
+    errorMessage: String?,
     onCopy: (SnapProfile) -> Unit,
     onReport: (SnapProfile) -> Unit
 ) {
@@ -568,16 +571,46 @@ private fun ExploreScreen(
             }
         }
 
+        if (backendConfigured) {
+            Surface(color = Color(0xFF1C302A), shape = RoundedCornerShape(14.dp)) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier.size(7.dp).clip(CircleShape).background(Color(0xFF72D5A3))
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("LIVE COMMUNITY DIRECTORY", color = Color(0xFF9FE5BE), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Profiles", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
             Text("${filtered.size} found", color = SnapfindColors.onSurfaceVariant, fontSize = 12.sp)
         }
 
-        if (filtered.isEmpty()) {
+        if (isLoading) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(10.dp))
+                Text("Loading community profiles…", color = SnapfindColors.onSurfaceVariant, fontSize = 13.sp)
+            }
+        } else if (errorMessage != null) {
             EmptyState(
-                title = "No profiles found",
-                body = "Try another name, interest or country."
+                title = "Directory unavailable",
+                body = errorMessage
+            )
+        } else if (filtered.isEmpty()) {
+            EmptyState(
+                title = if (backendConfigured) "No public listings yet" else "No profiles found",
+                body = if (backendConfigured) "Be the first to publish a listing, or try another search." else "Try another name, interest or country."
             )
         } else {
             filtered.forEach { profile ->
@@ -589,23 +622,25 @@ private fun ExploreScreen(
             }
         }
 
-        Surface(
-            color = Color(0xFF1C1B2A),
-            shape = RoundedCornerShape(18.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier.padding(14.dp),
-                verticalAlignment = Alignment.Top
+        if (!backendConfigured) {
+            Surface(
+                color = Color(0xFF1C1B2A),
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFFBBAFFF))
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    "These are preview profiles so you can test the interface. Global search will show real listings after account and database services are connected.",
-                    color = SnapfindColors.onSurfaceVariant,
-                    fontSize = 12.sp,
-                    lineHeight = 18.sp
-                )
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFFBBAFFF))
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        "Demo mode: these sample profiles are not real accounts. Configure Supabase to enable sign-in and the live directory.",
+                        color = SnapfindColors.onSurfaceVariant,
+                        fontSize = 12.sp,
+                        lineHeight = 18.sp
+                    )
+                }
             }
         }
         Spacer(Modifier.height(12.dp))
@@ -705,7 +740,11 @@ private fun SmallTag(label: String) {
 private fun MyListingScreen(
     profile: SnapProfile?,
     isPublished: Boolean,
+    backendConfigured: Boolean,
+    signedInEmail: String?,
     onCopy: (SnapProfile) -> Unit,
+    onSignIn: () -> Unit,
+    onSignOut: () -> Unit,
     onCreate: () -> Unit,
     onEdit: () -> Unit,
     onVisibilityChange: (Boolean) -> Unit,
@@ -722,15 +761,27 @@ private fun MyListingScreen(
         Text("My listing", fontSize = 27.sp, fontWeight = FontWeight.Bold)
         Text("Control what people can discover about you.", color = SnapfindColors.onSurfaceVariant, fontSize = 14.sp)
 
+        if (backendConfigured && signedInEmail != null) {
+            Text("Signed in as $signedInEmail", color = SnapfindColors.onSurfaceVariant, fontSize = 12.sp)
+            TextButton(onClick = onSignOut) { Text("Sign out") }
+        }
+
         if (profile == null) {
             EmptyState(
-                title = "You haven't published a listing",
-                body = "Create a voluntary public profile so people can find your Snapchat username."
+                title = if (backendConfigured && signedInEmail == null) "Sign in to publish" else "You haven't published a listing",
+                body = if (backendConfigured && signedInEmail == null) {
+                    "Sign in with your email to create and manage your public Snapfind listing."
+                } else {
+                    "Create a voluntary public profile so people can find your Snapchat username."
+                }
             )
-            Button(onClick = onCreate, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Default.Add, contentDescription = null)
+            Button(
+                onClick = if (backendConfigured && signedInEmail == null) onSignIn else onCreate,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(if (backendConfigured && signedInEmail == null) Icons.Default.Person else Icons.Default.Add, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Create my listing")
+                Text(if (backendConfigured && signedInEmail == null) "Sign in / Create account" else "Create my listing")
             }
         } else {
             ProfileCard(
@@ -754,7 +805,7 @@ private fun MyListingScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Public visibility", fontWeight = FontWeight.SemiBold)
                             Text(
-                                if (isPublished) "Your listing is visible in this device preview." else "Your listing is hidden from the preview.",
+                                if (isPublished) "Your listing is visible in the public directory." else "Your listing is hidden from public discovery.",
                                 color = SnapfindColors.onSurfaceVariant,
                                 fontSize = 11.sp
                             )
@@ -778,7 +829,11 @@ private fun MyListingScreen(
 
         Surface(color = Color(0xFF1C1B2A), shape = RoundedCornerShape(18.dp)) {
             Text(
-                "Prototype privacy note: your profile is stored only on this phone. It is not uploaded or searchable by other people yet.",
+                if (backendConfigured) {
+                    "Your listing is stored in Snapfind's database. You can hide it or delete it at any time."
+                } else {
+                    "Prototype privacy note: your profile is stored only on this phone. It is not uploaded or searchable by other people yet."
+                },
                 modifier = Modifier.padding(15.dp),
                 color = SnapfindColors.onSurfaceVariant,
                 fontSize = 12.sp,
