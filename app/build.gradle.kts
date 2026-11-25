@@ -1,10 +1,10 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
-
-import java.util.Properties
 
 val localConfig = Properties()
 val localConfigFile = rootProject.file("local.properties")
