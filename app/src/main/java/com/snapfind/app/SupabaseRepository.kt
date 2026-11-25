@@ -103,30 +103,15 @@ class SupabaseRepository(context: Context) {
 
     fun fetchPublicProfiles(query: String = "", country: String = ""): List<SnapProfile> {
         val session = validSession()
-        val safeQuery = query.trim()
-            .replace("*", "")
-            .replace(",", " ")
-            .replace("(", " ")
-            .replace(")", " ")
-            .replace("%", "")
-            .take(40)
-
-        val filters = mutableListOf(
-            "select=id,display_name,snapchat_username,country,interests,bio",
-            "order=created_at.desc",
-            "limit=100"
-        )
-        if (country.isNotBlank() && !country.equals("All", ignoreCase = true)) {
-            filters += "country=eq.${encode(country.trim())}"
-        }
-        if (safeQuery.isNotBlank()) {
-            val pattern = "*${safeQuery}*"
-            filters += "or=(display_name.ilike.${encode(pattern)},snapchat_username.ilike.${encode(pattern)},country.ilike.${encode(pattern)},bio.ilike.${encode(pattern)})"
-        }
+        val body = JSONObject()
+            .put("search_query", query.trim().take(40))
+            .put("country_filter", country.trim().take(60))
+            .put("max_results", 100)
 
         val response = request(
-            "GET",
-            "/rest/v1/public_profiles?${filters.joinToString("&")}",
+            "POST",
+            "/rest/v1/rpc/search_public_profiles",
+            body = body,
             session = session
         )
         val array = response.optJSONArray("data") ?: JSONArray()
