@@ -6,6 +6,7 @@ The SQL migrations must be applied in filename order:
 2. `migrations/202611250002_data_api_grants.sql`
 3. `migrations/202611250003_directory_search.sql`
 4. `migrations/202611250004_split_profile_discovery_policies.sql`
+5. `migrations/202611250005_private_block_relationships.sql`
 
 ## Create and configure the project
 
