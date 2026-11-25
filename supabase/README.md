@@ -1,6 +1,8 @@
 # Supabase setup
 
-The SQL migrations must be applied in filename order:
+For the easiest setup, open `supabase/setup.sql` and run the entire file once in the Supabase SQL Editor. It contains all five migrations in order.
+
+The individual migrations are also available if you prefer to apply them separately:
 
 1. `migrations/202611250001_initial_schema.sql`
 2. `migrations/202611250002_data_api_grants.sql`
