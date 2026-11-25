@@ -13,7 +13,7 @@ SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
 SUPABASE_ANON_KEY=sb_publishable_YOUR_PUBLIC_KEY
 ```
 
-The app accepts a Supabase publishable key or legacy anon key. **Never use a Supabase secret key or service-role key in the Android app.** The mobile app is an untrusted client; Postgres grants and RLS policies enforce access.
+The app accepts a Supabase publishable key (recommended) or legacy anon key. A publishable key is public and can be extracted from the APK, so it is not a security boundary. **Never use a Supabase secret key or service-role key in the Android app.** The app sends this key in the `apikey` header and sends a user's access token separately as `Authorization: Bearer`; the database's grants and RLS policies enforce access. <https://supabase.com/docs/guides/getting-started/api-keys>
 
 ## Build locally
 
