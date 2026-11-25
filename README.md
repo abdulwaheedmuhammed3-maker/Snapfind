@@ -16,7 +16,7 @@ Implemented in this version:
 
 ## Current prototype limitations
 
-**This version does not yet provide global discovery.** The discovery screen contains clearly labelled sample profiles. A profile you create is stored locally on your device using Android preferences; it is not uploaded or visible to other users. Authentication, a shared database, real reporting/moderation, and production privacy controls still need to be implemented before public launch.
+**This version does not yet provide global discovery.** The discovery screen contains clearly labelled sample profiles. A profile you create is stored locally on your device using Android preferences; it is not uploaded or visible to other users. Supabase SQL schema is present under `supabase/migrations/`, but authentication, the live database connection, real reporting/moderation operations, and production privacy controls still need to be implemented before public launch.
 
 ## Build a debug APK
 
