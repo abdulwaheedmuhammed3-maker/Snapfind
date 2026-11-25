@@ -78,6 +78,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import java.util.concurrent.Executors
+import kotlinx.coroutines.delay
 
 private val SnapfindColors = darkColorScheme(
     primary = Color(0xFF9B8CFF),
@@ -158,7 +159,8 @@ private fun SnapfindApp() {
                     username = username,
                     country = preferences.getString("country", "").orEmpty(),
                     interests = preferences.getString("interests", "").orEmpty(),
-                    bio = preferences.getString("bio", "").orEmpty()
+                    bio = preferences.getString("bio", "").orEmpty(),
+                    isPublished = preferences.getBoolean("published", true)
                 )
             }
         )
@@ -240,7 +242,7 @@ private fun SnapfindApp() {
             runInBackground(
                 work = {
                     repository.saveProfile(profile, activeSession.userId)
-                    profile.copy(id = activeSession.userId, isPreview = false, isPublished = true)
+                    profile.copy(id = activeSession.userId, isPreview = false)
                 },
                 onResult = { saved ->
                     ownProfile = saved
@@ -322,7 +324,25 @@ private fun SnapfindApp() {
                     isLoading = directoryLoading,
                     errorMessage = directoryError,
                     onCopy = ::copyUsername,
-                    onReport = { reportTarget = it }
+                    onReport = { reportTarget = it },
+                    onSearch = { query, country ->
+                        if (repository.isConfigured) {
+                            directoryLoading = true
+                            runInBackground(
+                                work = { repository.fetchPublicProfiles(query, country) },
+                                onResult = { found ->
+                                    profiles.clear()
+                                    profiles.addAll(found)
+                                    directoryLoading = false
+                                    directoryError = null
+                                },
+                                onError = { message ->
+                                    directoryError = message
+                                    directoryLoading = false
+                                }
+                            )
+                        }
+                    }
                 )
                 AppScreen.PROFILE -> MyListingScreen(
                     profile = if (repository.isConfigured && session == null) null else ownProfile,
@@ -526,11 +546,20 @@ private fun ExploreScreen(
     isLoading: Boolean,
     errorMessage: String?,
     onCopy: (SnapProfile) -> Unit,
-    onReport: (SnapProfile) -> Unit
+    onReport: (SnapProfile) -> Unit,
+    onSearch: (String, String) -> Unit
 ) {
     var query by remember { mutableStateOf("") }
     var country by remember { mutableStateOf("All") }
-    val countries = listOf("All", "Nigeria", "Ghana", "United Kingdom", "Canada")
+    var hasFiltered by remember { mutableStateOf(false) }
+    val countries = listOf("All") + profiles.map { it.country }.filter { it.isNotBlank() }.distinct().sorted()
+
+    LaunchedEffect(query, country, hasFiltered, backendConfigured) {
+        if (backendConfigured && hasFiltered) {
+            delay(350)
+            onSearch(query, country)
+        }
+    }
 
     val filtered = profiles.filter { profile ->
         val matchesQuery = query.isBlank() ||
@@ -558,7 +587,10 @@ private fun ExploreScreen(
         )
         OutlinedTextField(
             value = query,
-            onValueChange = { query = it },
+            onValueChange = {
+                query = it
+                hasFiltered = true
+            },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             placeholder = { Text("Search name, username or interest") },
@@ -575,7 +607,10 @@ private fun ExploreScreen(
                 Surface(
                     modifier = Modifier
                         .clip(RoundedCornerShape(50.dp))
-                        .clickable { country = option },
+                        .clickable {
+                            country = option
+                            hasFiltered = true
+                        },
                     color = if (country == option) Color(0xFF8D7BEB) else Color(0xFF202332),
                     shape = RoundedCornerShape(50.dp)
                 ) {
