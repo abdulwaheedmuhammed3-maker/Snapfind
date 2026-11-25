@@ -35,7 +35,7 @@ To build locally with Gradle 8.9 installed:
 gradle assembleDebug
 ```
 
-The APK is generated at `app/build/outputs/apk/debug/app-debug.apk`.
+The APK is generated at `app/build/outputs/apk/debug/app-debug.apk`. Pull requests to `main` run the same build check.
 
 ## Privacy and safety principles
 
