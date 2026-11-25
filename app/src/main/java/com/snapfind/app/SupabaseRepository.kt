@@ -43,7 +43,6 @@ class SupabaseRepository(context: Context) {
         val userId = preferences.getString("user_id", null) ?: return null
         val email = preferences.getString("email", "").orEmpty()
         val expiresAt = preferences.getLong("expires_at", 0L)
-        if (expiresAt <= System.currentTimeMillis()) return null
         return SupabaseSession(accessToken, refreshToken, userId, email, expiresAt)
     }
 
