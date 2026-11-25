@@ -226,6 +226,7 @@ private fun SnapfindApp() {
 
     var screen by remember { mutableStateOf(AppScreen.EXPLORE) }
     var reportTarget by remember { mutableStateOf<SnapProfile?>(null) }
+    var selectedReportReason by remember { mutableStateOf("spam") }
 
     fun persistProfile(profile: SnapProfile) {
         if (repository.isConfigured) {
@@ -243,7 +244,7 @@ private fun SnapfindApp() {
                 },
                 onResult = { saved ->
                     ownProfile = saved
-                    isPublished = true
+                    isPublished = saved.isPublished
                     authLoading = false
                     authMessage = null
                     screen = AppScreen.PROFILE
@@ -257,17 +258,17 @@ private fun SnapfindApp() {
             return
         }
 
-        val saved = profile.copy(id = "owner", isPreview = false, isPublished = true)
+        val saved = profile.copy(id = "owner", isPreview = false)
         preferences.edit()
             .putString("display_name", saved.displayName)
             .putString("username", saved.username)
             .putString("country", saved.country)
             .putString("interests", saved.interests)
             .putString("bio", saved.bio)
-            .putBoolean("published", true)
+            .putBoolean("published", saved.isPublished)
             .apply()
         ownProfile = saved
-        isPublished = true
+        isPublished = saved.isPublished
         screen = AppScreen.PROFILE
     }
 
@@ -356,7 +357,10 @@ private fun SnapfindApp() {
                                     repository.setProfileVisibility(active.userId, visible)
                                     visible
                                 },
-                                onResult = { isPublished = it },
+                                onResult = {
+                                    isPublished = it
+                                    ownProfile = ownProfile?.copy(isPublished = it)
+                                },
                                 onError = { message -> authMessage = message }
                             )
                         } else {
@@ -431,13 +435,28 @@ private fun SnapfindApp() {
             onDismissRequest = { reportTarget = null },
             title = { Text("Report @${reportTarget!!.username}?") },
             text = {
-                Text(
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        if (repository.isConfigured) {
+                            "Choose the reason that best describes this listing."
+                        } else {
+                            "Reports will be submitted to the moderation service after Supabase is configured."
+                        }
+                    )
                     if (repository.isConfigured) {
-                        "Submit a report for review. Choose a reason: spam, harassment, impersonation, inappropriate content, or other."
-                    } else {
-                        "Reports will be submitted to the moderation service after Supabase is configured."
+                        listOf("spam", "harassment", "impersonation", "inappropriate", "other").forEach { reason ->
+                            TextButton(
+                                onClick = { selectedReportReason = reason },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    (if (selectedReportReason == reason) "● " else "○ ") +
+                                        reason.replaceFirstChar { it.uppercase() }
+                                )
+                            }
+                        }
                     }
-                )
+                }
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -450,7 +469,7 @@ private fun SnapfindApp() {
                         authMessage = "Sign in before submitting a report."
                     } else {
                         runInBackground(
-                            work = { repository.reportProfile(target.id, "other") },
+                            work = { repository.reportProfile(target.id, selectedReportReason) },
                             onResult = { Toast.makeText(context, "Report submitted for review.", Toast.LENGTH_LONG).show() },
                             onError = { message -> Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
                         )
@@ -846,7 +865,15 @@ private fun MyListingScreen(
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
             title = { Text("Delete your listing?") },
-            text = { Text("This removes the profile saved on this device. You can create another one later.") },
+            text = {
+                Text(
+                    if (backendConfigured) {
+                        "This permanently removes your public Snapfind listing. Your sign-in account remains active."
+                    } else {
+                        "This removes the profile saved on this device. You can create another one later."
+                    }
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
                     confirmDelete = false
@@ -1002,6 +1029,7 @@ private fun ProfileFormScreen(
     var country by remember(initialProfile?.id) { mutableStateOf(initialProfile?.country.orEmpty()) }
     var interests by remember(initialProfile?.id) { mutableStateOf(initialProfile?.interests.orEmpty()) }
     var bio by remember(initialProfile?.id) { mutableStateOf(initialProfile?.bio.orEmpty()) }
+    var isPublic by remember(initialProfile?.id) { mutableStateOf(initialProfile?.isPublished ?: true) }
     var consent by remember(initialProfile?.id) { mutableStateOf(initialProfile != null) }
 
     val cleanUsername = username.trim().removePrefix("@")
@@ -1104,7 +1132,8 @@ private fun ProfileFormScreen(
                         username = cleanUsername,
                         country = country.trim(),
                         interests = interests.trim(),
-                        bio = bio.trim()
+                        bio = bio.trim(),
+                        isPublished = isPublic
                     )
                 )
             },
